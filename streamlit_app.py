@@ -30,8 +30,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 LINE_YANG = "——"
 LINE_YIN = "-- --"
 
-# 八卦基础信息 (先天数序: 1乾 2兑 3离 4震 5巽 6坎 7艮 8坤)
-# 映射到三爻的二进制 (Bottom, Middle, Top) 1=Yang, 0=Yin
+# 八卦基础信息
 BAGUA_MAP = {
     1: {"name": "乾", "bits": (1, 1, 1)},
     2: {"name": "兑", "bits": (1, 1, 0)},
@@ -50,7 +49,6 @@ def load_yijing_data():
         with open("data/yijing_cn.json", "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        # 如果找不到文件，返回空，不报错崩溃
         return {}
 
 YIJING = load_yijing_data()
@@ -153,6 +151,7 @@ def gather_yao_texts(gua, moving_indexes):
     for i in range(6):
         pos = i + 1
         text = yao_dict.get(str(pos), "")
+        # 只有主卦才标记是否是动爻，变卦一般不强调"变卦里的动爻"（因为已经变过来了）
         yaos.append({"pos": pos, "text": text, "is_moving": i in moving_indexes})
     return yaos
 
@@ -222,55 +221,48 @@ with st.container():
 
     start_btn = st.button("开始起卦", type="primary", use_container_width=True)
 
-# --- 辅助渲染函数 (CSS 绘制，解决显示不清问题) ---
+# --- 辅助渲染函数 (CSS 绘制) ---
 def render_hexagram_html(bits, moving_indices=None, changed_indices=None, title=""):
     """
-    使用 CSS 块绘制卦爻，完全替代字符显示，确保在任何背景下都清晰可见。
+    使用 CSS 块绘制卦爻。
+    修复：将 HTML 字符串压缩为一行或移除前导空格，防止 Markdown 解析为代码块。
     """
-    # 强制使用白色卡片背景和深色文字，不受 Streamlit 主题影响
-    html = f"""
-    <div style='
-        text-align:center; 
-        background:#ffffff; 
-        padding:15px; 
-        border-radius:12px; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-        width: fit-content;
-        min-width: 140px;
-        margin: 0 auto;
-        border: 1px solid #e0e0e0;
-    '>
-    """
-    html += f"<h4 style='margin:0 0 12px 0; color:#333; font-size:18px; font-family:sans-serif;'>{title}</h4>"
+    # 容器样式
+    container_style = (
+        "text-align:center; background:#ffffff; padding:15px; "
+        "border-radius:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); "
+        "width: fit-content; min-width: 140px; margin: 0 auto; border: 1px solid #e0e0e0;"
+    )
     
-    # 从上到下 (Index 5 -> 0)
+    parts = []
+    parts.append(f"<div style='{container_style}'>")
+    parts.append(f"<h4 style='margin:0 0 12px 0; color:#333; font-size:18px; font-family:sans-serif;'>{title}</h4>")
+    
+    # 从上到下绘制 (Index 5 -> 0)
     for i in range(5, -1, -1):
         bit = bits[i]
         is_moving = moving_indices and (i in moving_indices)
         is_changed = changed_indices and (i in changed_indices)
         
-        # 配色逻辑
-        # 默认静爻颜色：深灰
-        line_color = "#2d3748" 
+        # 颜色定义
+        line_color = "#2d3748" # 默认深灰
         row_bg = "transparent"
         label_html = ""
         
         if is_moving:
-            line_color = "#e53e3e" # 动爻：醒目红/橙
-            row_bg = "#fff5f5"     # 动爻背景：浅红
+            line_color = "#e53e3e" # 动爻红
+            row_bg = "#fff5f5"
             label_html = "<span style='color:#e53e3e; font-size:12px; font-weight:bold; margin-left:6px;'>●动</span>"
         elif is_changed:
-            line_color = "#3182ce" # 变爻：蓝色
-            row_bg = "#ebf8ff"     # 变爻背景：浅蓝
-            # 变卦中通常不需要特别标记文字，颜色区分即可
-
-        # 绘制线条 (CSS Block)
-        visual_line = ""
+            line_color = "#3182ce" # 变爻蓝
+            row_bg = "#ebf8ff"
+        
+        # 绘制线条
         if bit == 1:
-            # 阳爻：实心长条
+            # 阳爻
             visual_line = f"<div style='width:70px; height:10px; background:{line_color}; border-radius:2px;'></div>"
         else:
-            # 阴爻：两个短条
+            # 阴爻
             visual_line = f"""
             <div style='display:flex; justify-content:space-between; width:70px;'>
                 <div style='width:30px; height:10px; background:{line_color}; border-radius:2px;'></div>
@@ -278,24 +270,17 @@ def render_hexagram_html(bits, moving_indices=None, changed_indices=None, title=
             </div>
             """
             
-        # 每一爻的容器
-        html += f"""
-        <div style='
-            display:flex; 
-            align-items:center; 
-            justify-content:center; 
-            padding:4px 8px; 
-            margin-bottom:4px; 
-            background:{row_bg}; 
-            border-radius:4px;
-        '>
+        # 行容器
+        row_html = f"""
+        <div style='display:flex; align-items:center; justify-content:center; padding:4px 8px; margin-bottom:4px; background:{row_bg}; border-radius:4px;'>
             <div style='width:70px;'>{visual_line}</div>
             <div style='width:35px; text-align:left;'>{label_html}</div>
         </div>
         """
+        parts.append(row_html.replace('\n', '')) # 移除换行符防止格式问题
         
-    html += "</div>"
-    return html
+    parts.append("</div>")
+    return "".join(parts)
 
 if start_btn:
     st.divider()
@@ -306,14 +291,16 @@ if start_btn:
     mov_idx = set(res["moving_indexes"])
     chg_idx = set(i for i in range(6) if p_bits[i] != r_bits[i])
     
+    # 收集爻辞
+    p_yaos = gather_yao_texts(res["primary_gua"], res["moving_indexes"])
+    r_yaos = gather_yao_texts(res["result_gua"], []) # 变卦的爻辞（不标记动爻）
+
     if question:
         st.write(f"**问：** {question}")
         
-    # 使用两列布局显示卦象
     col_p, col_r = st.columns(2)
     
     with col_p:
-        # 渲染主卦
         html_p = render_hexagram_html(p_bits, moving_indices=mov_idx, title="主卦")
         st.markdown(html_p, unsafe_allow_html=True)
         if res['primary_gua']:
@@ -321,28 +308,27 @@ if start_btn:
     
     with col_r:
         if mov_idx:
-            # 渲染变卦
             html_r = render_hexagram_html(r_bits, changed_indices=chg_idx, title="变卦")
             st.markdown(html_r, unsafe_allow_html=True)
             if res['result_gua']:
                 st.markdown(f"<div style='text-align:center; margin-top:5px;'><b>{res['result_gua']['name']}</b></div>", unsafe_allow_html=True)
         else:
+            # 占位，保持对齐
             st.info("本卦无动爻\n\n主卦即终卦")
 
     st.divider()
     st.subheader("💡 智能断卦参考")
     
-    p_yaos = gather_yao_texts(res["primary_gua"], res["moving_indexes"])
     interpretation = smart_interpretation(res["primary_gua"], res["result_gua"], res["moving_indexes"], p_yaos)
-    
     for hint in interpretation:
         st.markdown(hint)
 
-    with st.expander("查看详细卦辞与爻辞"):
+    # 详细解释区
+    with st.expander("查看详细卦辞与爻辞", expanded=False):
         if res['primary_gua']:
             st.markdown(f"### 主卦：{res['primary_gua']['name']}")
-            st.write(res['primary_gua']['gua_ci'])
-            st.markdown("#### 爻辞：")
+            st.write(f"**卦辞**：{res['primary_gua']['gua_ci']}")
+            st.markdown("#### 主卦爻辞：")
             for yao in reversed(p_yaos): 
                 prefix = "🔴 " if yao['is_moving'] else ""
                 style = "**" if yao['is_moving'] else ""
@@ -351,4 +337,12 @@ if start_btn:
         if mov_idx and res['result_gua']:
             st.divider()
             st.markdown(f"### 变卦：{res['result_gua']['name']}")
-            st.write(res['result_gua']['gua_ci'])
+            st.write(f"**卦辞**：{res['result_gua']['gua_ci']}")
+            # 新增：显示变卦爻辞
+            st.markdown("#### 变卦爻辞：")
+            for yao in reversed(r_yaos): 
+                # 变卦中可以高亮显示“变过来的那一爻”，即对应的动爻位置
+                is_changed_pos = (yao['pos'] - 1) in mov_idx
+                prefix = "🔵 " if is_changed_pos else ""
+                style = "**" if is_changed_pos else ""
+                st.markdown(f"{prefix}{style}第 {yao['pos']} 爻：{yao['text']}{style}")
