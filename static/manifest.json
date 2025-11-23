@@ -1,0 +1,20 @@
+{
+  "name": "梅花易数",
+  "short_name": "梅花易数",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#2b6cb0",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1680/1680368.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1680/1680368.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
